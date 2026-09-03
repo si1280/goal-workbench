@@ -500,6 +500,12 @@ a { color: inherit; text-decoration: none; }
   color: var(--muted);
   padding: 4px 8px;
 }
+.cal-task-del {
+  font-size: 14px;
+  color: var(--red);
+  padding: 4px 6px;
+  opacity: 0.6;
+}
 .task-pool {
   margin-top: 12px;
   border: 2px dashed var(--rule);
@@ -1017,8 +1023,8 @@ a { color: inherit; text-decoration: none; }
 'use strict';
 
 /* ===== Config ===== */
-var APP_VERSION = '2.3.0';
-var BUILD_ID = '20260903d';
+var APP_VERSION = '2.4.0';
+var BUILD_ID = '20260903e';
 var STORAGE_KEY = 'goal_workbench_data_v2';
 
 /* ===== Default Data ===== */
@@ -1485,13 +1491,15 @@ function renderCalendar(c) {
   html+='</div>';
 
   var selTasks=state.data.tasks.filter(function(t){return t.date===state.selectedDate;});
-  html+='<div class="cal-day-tasks"><div class="section-label">'+state.selectedDate.replace(/2026-0?/,'').replace('-','月')+'日 · '+(selTasks.length>0?selTasks.length+' 项':'无任务')+'</div>';
+  html+='<div class="cal-day-tasks"><div class="row-between"><div class="section-label" style="margin:0">'+state.selectedDate.replace(/2026-0?/,'').replace('-','月')+'日 · '+(selTasks.length>0?selTasks.length+' 项':'无任务')+'</div>'+
+    '<span class="add-fab" id="cal-add-task" style="margin:0;padding:4px 10px;font-size:12px">＋ 添加</span></div>';
   selTasks.forEach(function(t){
     var p=getProject(t.projectId);
     html+='<div class="cal-task-item"><div class="cal-task-bar" style="background:'+(p?p.color:'#ccc')+'"></div>'+
       '<div class="col" style="flex:1;cursor:pointer" data-edit-task="'+t.id+'"><span style="font-size:13px;font-weight:600">'+escapeHtml(t.title)+'</span>'+
       '<span style="font-size:11px;color:var(--muted)">'+(p?p.name:'')+'</span></div>'+
       (t.completed?'<span class="tag tag-green">✅</span>':'<span class="cal-task-remove" data-rm-task="'+t.id+'">✕</span>')+
+      '<span class="cal-task-del" data-del-task="'+t.id+'">🗑</span>'+
       '</div>';
   });
   html+='</div>';
@@ -1514,6 +1522,7 @@ function renderCalendar(c) {
   c.querySelectorAll('.cal-cell:not(.empty)').forEach(function(cell){
     cell.addEventListener('click',function(){ state.selectedDate=cell.dataset.date; render(); });
   });
+  $('#cal-add-task').addEventListener('click',function(){ addTask(state.selectedDate); });
   c.querySelectorAll('[data-rm-task]').forEach(function(btn){
     btn.addEventListener('click',function(){
       var t=getTask(btn.dataset.rmTask); if(!t) return;
@@ -1523,6 +1532,9 @@ function renderCalendar(c) {
       render();
       showToast('已移回任务池',function(){ t.date=oldDate; saveData(); render(); });
     });
+  });
+  c.querySelectorAll('[data-del-task]').forEach(function(btn){
+    btn.addEventListener('click',function(){ deleteTask(btn.dataset.delTask); });
   });
   c.querySelectorAll('[data-edit-task]').forEach(function(el){
     el.addEventListener('click',function(){ editTask(el.dataset.editTask); });
@@ -1729,12 +1741,28 @@ function renderDashboard(c) {
     '<span style="font-size:11px;color:var(--muted)">等级、徽章、连续打卡</span></div>'+
     '<span style="color:var(--accent)">→</span></div>';
 
-  // Reset
+  // XP Settings
+  html+='<div class="ai-review-btn" id="xp-settings"><div class="ai-icon">⚙</div>'+
+    '<div class="col" style="flex:1"><span style="font-size:13px;font-weight:600">XP 与等级设置</span>'+
+    '<span style="font-size:11px;color:var(--muted)">修改等级、XP、升级阈值、连续天数</span></div>'+
+    '<span style="color:var(--accent)">→</span></div>';
+
+  // Progress Reset
+  html+='<div class="reset-btn" id="reset-progress-btn" style="color:var(--orange)">进度清零（保留项目结构）</div>';
+
+  // Full Reset
   html+='<div class="reset-btn" id="reset-btn">重置数据为初始状态</div>';
   html+='<div style="text-align:center;font-size:10px;color:var(--muted);padding:8px 0 16px">v'+APP_VERSION+' · Build '+BUILD_ID+'</div>';
 
   c.innerHTML=html;
   $('#go-achievement').addEventListener('click',function(){ navigate('achievement'); });
+  $('#xp-settings').addEventListener('click',editGamification);
+  $('#reset-progress-btn').addEventListener('click',function(){
+    showModal('<h3>进度清零？</h3><p>所有任务标记为未完成、步骤重置为未开始、XP/等级/连续天数归零。项目、任务、灵感结构保留不变。</p>'+
+      '<div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">取消</button>'+
+      '<button class="btn-danger" id="confirm-reset-progress">确认清零</button></div>');
+    $('#confirm-reset-progress').addEventListener('click',function(){ closeModal(); resetProgress(); });
+  });
   $('#reset-btn').addEventListener('click',function(){
     showModal('<h3>重置数据？</h3><p>所有任务进度、灵感、聊天记录将恢复为初始状态，此操作不可撤销。</p>'+
       '<div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">取消</button>'+
@@ -1751,7 +1779,8 @@ function renderAchievement(c) {
     '<span class="page-back" id="go-back">‹</span><h1 class="page-title" style="font-size:18px">成就</h1></div></div>';
 
   // Level
-  html+='<div class="level-card"><div class="level-circle">'+g.level+'</div>'+
+  html+='<div class="level-card"><div class="row-between"><div class="level-circle">'+g.level+'</div>'+
+    '<span class="add-fab" id="edit-xp-btn" style="margin:0;padding:4px 10px;font-size:12px">⚙ 修改</span></div>'+
     '<div class="level-name">Level '+g.level+' · 行动派</div>'+
     '<div class="row-between" style="margin-top:10px"><span style="font-size:11px;color:var(--muted)">'+g.xp+' / '+g.xpToNext+' XP</span>'+
     '<span style="font-size:11px;color:var(--muted)">距 Lv.'+(g.level+1)+' 还需 '+(g.xpToNext-g.xp)+'</span></div>'+
@@ -1792,6 +1821,7 @@ function renderAchievement(c) {
 
   c.innerHTML=html;
   $('#go-back').addEventListener('click',goBack);
+  $('#edit-xp-btn').addEventListener('click',editGamification);
   $('#ai-nightly').addEventListener('click',function(){
     navigate('ai-chat',{prefill:'今日复盘'});
   });
@@ -1874,6 +1904,39 @@ function handleInspirationInput(text) {
       saveData(); render();
     });
   }
+}
+
+/* ===== Progress Reset & XP Settings ===== */
+function resetProgress() {
+  var d=state.data;
+  d.tasks.forEach(function(t){ t.completed=false; });
+  d.projects.forEach(function(p){
+    p.steps.forEach(function(s){ s.status='todo'; s.blocker=null; });
+  });
+  d.gamification.level=1;
+  d.gamification.xp=0;
+  d.gamification.xpToNext=500;
+  d.gamification.streak=0;
+  d.gamification.lastCompleteDate=null;
+  d.gamification.badges.forEach(function(b){ if(b.id!=='b1') b.earned=false; });
+  saveData(); render();
+  showToast('进度已清零');
+}
+
+function editGamification() {
+  var g=state.data.gamification;
+  showFormModal('XP 与等级设置',[
+    {type:'text',name:'level',label:'当前等级',value:String(g.level)},
+    {type:'text',name:'xp',label:'当前 XP',value:String(g.xp)},
+    {type:'text',name:'xpToNext',label:'升级所需 XP（阈值）',value:String(g.xpToNext)},
+    {type:'text',name:'streak',label:'连续天数',value:String(g.streak)}
+  ],function(v){
+    g.level=parseInt(v.level)||1;
+    g.xp=parseInt(v.xp)||0;
+    g.xpToNext=parseInt(v.xpToNext)||500;
+    g.streak=parseInt(v.streak)||0;
+    saveData();render();showToast('设置已更新');
+  });
 }
 
 /* ===== AI Simulation ===== */
