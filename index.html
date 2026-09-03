@@ -958,6 +958,43 @@ a { color: inherit; text-decoration: none; }
   margin-top: 16px;
 }
 
+/* ===== Form & CRUD ===== */
+.form-group { margin-bottom: 12px; }
+.form-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; display: block; }
+.form-input, .form-select, .form-textarea {
+  width: 100%; padding: 10px; border: 1px solid var(--rule); border-radius: 8px;
+  font-size: 14px; background: var(--bg); color: var(--ink); outline: none;
+  font-family: inherit;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); }
+.form-textarea { resize: none; min-height: 60px; }
+.color-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+.color-dot-btn {
+  width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent;
+  cursor: pointer; flex-shrink: 0;
+}
+.color-dot-btn.selected { border-color: var(--ink); transform: scale(1.1); }
+.icon-picker { display: flex; gap: 6px; flex-wrap: wrap; }
+.icon-btn {
+  width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--rule);
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+  cursor: pointer; background: var(--bg);
+}
+.icon-btn.selected { border-color: var(--accent); background: var(--accent-light); }
+.add-fab {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px; background: var(--card); border: 1px dashed var(--rule);
+  border-radius: var(--radius-sm); color: var(--muted); font-size: 13px;
+  margin-bottom: 10px; cursor: pointer;
+}
+.add-fab:active { background: var(--accent-light); }
+.btn-delete-in-modal {
+  width: 100%; padding: 10px; border-radius: 10px; background: transparent;
+  color: var(--red); font-size: 14px; font-weight: 600; border: 1px solid var(--red-light); margin-top: 8px;
+}
+.modal-card { max-width: 340px; max-height: 80vh; overflow-y: auto; }
+.step-edit-hint { font-size: 10px; color: var(--muted); padding: 2px 6px; flex-shrink: 0; }
+
 /* ===== Responsive ===== */
 @media (max-width: 380px) {
   #page-container { padding: 0 12px; }
@@ -980,8 +1017,8 @@ a { color: inherit; text-decoration: none; }
 'use strict';
 
 /* ===== Config ===== */
-var APP_VERSION = '2.0.1';
-var BUILD_ID = '20260903a';
+var APP_VERSION = '2.2.0';
+var BUILD_ID = '20260903c';
 var STORAGE_KEY = 'goal_workbench_data_v2';
 
 /* ===== Default Data ===== */
@@ -1270,12 +1307,13 @@ function renderToday(c) {
     '<span class="streak-sub">今日已完成 '+doneCount+'/'+tasks.length+'</span></div></div>'+
     '<div class="level-info"><div class="level-num">Lv.'+g.level+'</div><div class="xp-text">'+g.xp+' XP</div></div></div>'+
     '<div class="xp-bar"><div class="xp-fill" style="width:'+xpPct+'%"></div></div></div>';
-  html+='<div class="section-label">今日重点 · '+tasks.length+' 项</div>';
+  html+='<div class="section-label row-between"><span>今日重点 · '+tasks.length+' 项</span>'+
+    '<span class="add-fab" id="add-task-today" style="margin:0;padding:4px 10px;font-size:12px">＋ 添加任务</span></div>';
   html+='<div>'+tasks.map(function(t){
     var p=getProject(t.projectId);
     return '<div class="task-card '+(t.completed?'done':'')+(t.priority==='high'?' high':'')+'">'+
       '<div class="checkbox '+(t.completed?'checked':'')+'" data-task-id="'+t.id+'"></div>'+
-      '<div class="task-content"><div class="task-title '+(t.completed?'strike':'')+'">'+escapeHtml(t.title)+'</div>'+
+      '<div class="task-content" data-edit-task="'+t.id+'"><div class="task-title '+(t.completed?'strike':'')+'">'+escapeHtml(t.title)+'</div>'+
       '<div class="task-meta">'+(p?p.name:'')+' · '+(t.completed?'已完成':'待完成')+'</div></div>'+
       (t.completed?'<span class="xp-tag">+'+t.xp+' XP</span>':'<span class="priority-tag">高优先</span>')+
     '</div>';
@@ -1284,6 +1322,10 @@ function renderToday(c) {
   c.querySelectorAll('.checkbox[data-task-id]').forEach(function(cb){
     cb.addEventListener('click',function(){ toggleTask(cb.dataset.taskId); });
   });
+  c.querySelectorAll('[data-edit-task]').forEach(function(el){
+    el.addEventListener('click',function(){ editTask(el.dataset.editTask); });
+  });
+  $('#add-task-today').addEventListener('click',function(){ addTask(todayStr()); });
 }
 
 /* ===== Page: Projects ===== */
@@ -1296,7 +1338,8 @@ function renderProjects(c) {
   var milestones=ps.filter(function(p){return p.type==='milestone';});
   var cycles=ps.filter(function(p){return p.type==='cycle';});
 
-  var html='<div class="page-header"><h1 class="page-title">项目看板</h1></div>';
+  var html='<div class="page-header row-between" style="align-items:center"><h1 class="page-title">项目看板</h1>'+
+    '<button class="add-fab" id="add-project-btn" style="margin:0;padding:6px 14px">＋ 新建</button></div>';
   html+='<div class="summary-row"><div class="summary-item"><div class="num">'+total+'</div><div class="label">总项目</div></div>'+
     '<div class="summary-item"><div class="num">'+inProgress+'</div><div class="label">进行中</div></div>'+
     '<div class="summary-item"><div class="num red">'+blocked+'</div><div class="label">有卡点</div></div></div>';
@@ -1308,8 +1351,15 @@ function renderProjects(c) {
   cycles.forEach(function(p){ html+=projectCardHTML(p); });
 
   c.innerHTML=html;
+  $('#add-project-btn').addEventListener('click',addProject);
   c.querySelectorAll('.swipe-content').forEach(function(el){
     setupSwipeDelete(el, function(){ deleteProject(el.dataset.pid); });
+    var pressTimer=null;
+    el.addEventListener('touchstart',function(){
+      pressTimer=setTimeout(function(){ editProject(el.dataset.pid); pressTimer=null; },500);
+    },{passive:true});
+    el.addEventListener('touchmove',function(){ if(pressTimer){clearTimeout(pressTimer);pressTimer=null;} },{passive:true});
+    el.addEventListener('touchend',function(){ if(pressTimer){clearTimeout(pressTimer);pressTimer=null;} },{passive:true});
   });
   c.querySelectorAll('[data-pid]').forEach(function(el){
     if(el.classList.contains('swipe-content')) {
@@ -1356,7 +1406,8 @@ function renderProjectDetail(c) {
     '<span style="font-size:11px;color:var(--muted)">'+doneSteps+'/'+p.steps.length+' 步 · '+pct+'%</span></div>'+
     '<div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%;background:'+p.color+'"></div></div></div>';
 
-  html+='<div class="section-label">细分步骤</div>';
+  html+='<div class="section-label row-between"><span>细分步骤</span>'+
+    '<span class="step-edit-hint">长按内容可编辑</span></div>';
   p.steps.forEach(function(s,i) {
     var isBlocked=(s.status==='active'&&s.blocker);
     html+='<div class="step-card '+(isBlocked?'blocked':'')+'">';
@@ -1365,7 +1416,7 @@ function renderProjectDetail(c) {
     } else {
       html+='<div class="checkbox" data-step="'+s.id+'" data-pid="'+p.id+'"></div>';
     }
-    html+='<div class="step-content"><div class="step-title '+(s.status==='done'?'strike':'')+'">Step '+(i+1)+' · '+escapeHtml(s.title)+'</div>';
+    html+='<div class="step-content" data-edit-step="'+s.id+'" data-edit-pid="'+p.id+'"><div class="step-title '+(s.status==='done'?'strike':'')+'">Step '+(i+1)+' · '+escapeHtml(s.title)+'</div>';
     if(s.status==='done') html+='<div class="step-status">✅ 已完成</div>';
     else if(s.status==='active') html+='<div class="step-status" style="color:var(--accent);font-weight:600">🔶 进行中'+(s.blocker?' · 当前卡点':'')+'</div>';
     else if(s.blocker) html+='<div class="step-status">⬜ 待开始</div>';
@@ -1386,15 +1437,21 @@ function renderProjectDetail(c) {
     navigate('ai-chat',{prefill:'帮我复盘「'+p.name+'」项目的进度和卡点'});
   });
   $('#add-step').addEventListener('click',function(){
-    showPrompt('添加步骤','输入步骤名称',function(name){
-      if(!name) return;
-      p.steps.push({id:uid(),title:name,status:'todo'});
-      saveData();
-      render();
+    showFormModal('新建步骤',[
+      {type:'text',name:'title',label:'步骤名称',placeholder:'输入步骤名称'},
+      {type:'select',name:'status',label:'状态',value:'todo',options:[{value:'todo',label:'未开始'},{value:'active',label:'进行中'},{value:'done',label:'已完成'}]},
+      {type:'textarea',name:'blocker',label:'卡点说明(可选)',placeholder:'描述当前卡点'}
+    ],function(v){
+      if(!v.title||!v.title.trim()){showToast('请输入步骤名称');return;}
+      p.steps.push({id:uid(),title:v.title.trim(),status:v.status||'todo',blocker:(v.blocker&&v.blocker.trim())?v.blocker.trim():null});
+      saveData();render();showToast('步骤已添加');
     });
   });
   c.querySelectorAll('[data-step]').forEach(function(cb){
     cb.addEventListener('click',function(){ toggleStep(cb.dataset.pid,cb.dataset.step); });
+  });
+  c.querySelectorAll('[data-edit-step]').forEach(function(el){
+    el.addEventListener('click',function(){ editStep(el.dataset.editPid,el.dataset.editStep); });
   });
 }
 
@@ -1536,7 +1593,8 @@ function renderInspirations(c) {
   d.inspirations.forEach(function(i){counts[i.type]=(counts[i.type]||0)+1;});
 
   var typeMap={idea:'💡 灵感',todo:'📋 待办',material:'📎 资料'};
-  var html='<div class="page-header"><h1 class="page-title">灵感收集池</h1></div>';
+  var html='<div class="page-header"><div class="row-between"><h1 class="page-title">灵感收集池</h1>'+
+    '<button class="add-fab" id="add-insp-btn" style="margin:0;padding:4px 10px;font-size:12px">＋ 新建</button></div></div>';
   html+='<div class="filter-row">'+
     '<span class="tag '+(filter==='all'?'active':'')+'" data-filter="all">全部 '+counts.all+'</span>'+
     '<span class="tag '+(filter==='idea'?'active':'')+'" data-filter="idea">💡 灵感 '+counts.idea+'</span>'+
@@ -1545,18 +1603,27 @@ function renderInspirations(c) {
     '</div>';
   filtered.forEach(function(i){
     var p=i.projectId?getProject(i.projectId):null;
-    html+='<div class="inspiration-card">'+
+    html+='<div class="swipe-wrapper"><div class="swipe-delete-bg">🗑</div>'+
+      '<div class="swipe-content inspiration-card" data-iid="'+i.id+'" data-edit-insp="'+i.id+'">'+
       '<div class="row-between"><span class="tag '+(i.type==='idea'?'tag-accent':i.type==='todo'?'tag-orange':'')+'">'+(typeMap[i.type]||'📎')+'</span>'+
       '<span style="font-size:10px;color:var(--muted)">'+timeAgo(i.createdAt)+'</span></div>'+
       '<div class="inspiration-text">'+escapeHtml(i.content)+'</div>'+
       (p?'<div class="row"><span class="tag" style="background:'+p.color+'20;color:'+p.color+'">'+p.icon+' '+escapeHtml(p.name)+'</span></div>':'<div class="row"><span class="tag tag-red">未归档</span></div>')+
-      '</div>';
+      '</div></div>';
   });
   c.innerHTML=html;
+  $('#add-insp-btn').addEventListener('click',addInspiration);
   c.querySelectorAll('[data-filter]').forEach(function(t){
     t.addEventListener('click',function(){
       state.params.filter=t.dataset.filter==='all'?undefined:t.dataset.filter;
       render();
+    });
+  });
+  c.querySelectorAll('.swipe-content[data-iid]').forEach(function(el){
+    setupSwipeDelete(el,function(){ deleteInspiration(el.dataset.iid); });
+    el.addEventListener('click',function(){
+      if(parseFloat(el.style.transform||'0')<0) return;
+      editInspiration(el.dataset.iid);
     });
   });
 }
@@ -2085,6 +2152,179 @@ function setupSwipeDelete(element,onDelete) {
   element.addEventListener('touchstart',ts,{passive:true});
   element.addEventListener('touchmove',tm,{passive:false});
   element.addEventListener('touchend',te,{passive:true});
+}
+
+/* ===== Form Modal ===== */
+var PROJECT_COLORS=['#5B9A6F','#B8745A','#8B6BA8','#5B8DB8','#4A9B96','#E8A547','#D96B5E','#C97B9B'];
+var PROJECT_ICONS=['🌱','📋','🎬','📚','🏠','🤝','💡','🎯','🎨','🏃','✈️','💻','📝','🔥','⭐','🚀'];
+function showFormModal(title,fields,onConfirm,options) {
+  var html='<div class="form-group" data-fg="1">';
+  fields.forEach(function(f){
+    html+='<div class="form-group"><label class="form-label">'+escapeHtml(f.label)+'</label>';
+    if(f.type==='text')
+      html+='<input type="text" class="form-input" id="field-'+f.name+'" value="'+escapeHtml(f.value||'')+'" placeholder="'+escapeHtml(f.placeholder||'')+'" />';
+    else if(f.type==='textarea')
+      html+='<textarea class="form-textarea" id="field-'+f.name+'" placeholder="'+escapeHtml(f.placeholder||'')+'">'+escapeHtml(f.value||'')+'</textarea>';
+    else if(f.type==='select') {
+      html+='<select class="form-select" id="field-'+f.name+'">';
+      f.options.forEach(function(o){
+        html+='<option value="'+o.value+'" '+(String(o.value)===String(f.value)?'selected':'')+'>'+escapeHtml(o.label)+'</option>';
+      });
+      html+='</select>';
+    } else if(f.type==='color') {
+      html+='<div class="color-picker" data-picker="'+f.name+'">';
+      f.options.forEach(function(c){
+        html+='<div class="color-dot-btn '+(c===f.value?'selected':'')+'" data-val="'+c+'" style="background:'+c+'"></div>';
+      });
+      html+='<input type="hidden" id="field-'+f.name+'" value="'+(f.value||'')+'" /></div>';
+    } else if(f.type==='icon') {
+      html+='<div class="icon-picker" data-picker="'+f.name+'">';
+      f.options.forEach(function(ic){
+        html+='<div class="icon-btn '+(ic===f.value?'selected':'')+'" data-val="'+ic+'">'+ic+'</div>';
+      });
+      html+='<input type="hidden" id="field-'+f.name+'" value="'+(f.value||'')+'" /></div>';
+    }
+    html+='</div>';
+  });
+  html+='<div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">取消</button>'+
+    '<button class="btn-confirm" id="form-confirm" style="background:var(--accent);color:#fff">确定</button></div>';
+  if(options&&options.deleteFn)
+    html+='<button class="btn-delete-in-modal" id="form-delete">'+escapeHtml(options.deleteText||'删除')+'</button>';
+  showModal('<h3>'+escapeHtml(title)+'</h3>'+html);
+  document.querySelectorAll('[data-picker]').forEach(function(pk){
+    var hidden=document.getElementById('field-'+pk.dataset.picker);
+    pk.querySelectorAll('.color-dot-btn,.icon-btn').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        pk.querySelectorAll('.color-dot-btn,.icon-btn').forEach(function(b){b.classList.remove('selected');});
+        btn.classList.add('selected');
+        if(hidden) hidden.value=btn.dataset.val;
+      });
+    });
+  });
+  document.getElementById('form-confirm').addEventListener('click',function(){
+    var vals={};
+    fields.forEach(function(f){ var el=document.getElementById('field-'+f.name); if(el) vals[f.name]=el.value; });
+    closeModal();
+    onConfirm(vals);
+  });
+  if(options&&options.deleteFn)
+    document.getElementById('form-delete').addEventListener('click',function(){ closeModal(); options.deleteFn(); });
+}
+
+/* ===== CRUD: Projects ===== */
+function addProject() {
+  showFormModal('新建项目',[
+    {type:'text',name:'name',label:'项目名称',placeholder:'输入项目名称'},
+    {type:'icon',name:'icon',label:'图标',value:'🎯',options:PROJECT_ICONS},
+    {type:'select',name:'type',label:'类型',value:'milestone',options:[{value:'milestone',label:'里程碑项目'},{value:'cycle',label:'循环型项目'}]},
+    {type:'color',name:'color',label:'颜色',value:'#B8745A',options:PROJECT_COLORS}
+  ],function(v){
+    if(!v.name||!v.name.trim()){showToast('请输入项目名称');return;}
+    state.data.projects.push({id:uid(),name:v.name.trim(),type:v.type,icon:v.icon||'🎯',color:v.color||'#B8745A',steps:[]});
+    saveData();render();showToast('项目已创建');
+  });
+}
+function editProject(pid) {
+  var p=getProject(pid);if(!p)return;
+  showFormModal('编辑项目',[
+    {type:'text',name:'name',label:'项目名称',value:p.name},
+    {type:'icon',name:'icon',label:'图标',value:p.icon,options:PROJECT_ICONS},
+    {type:'select',name:'type',label:'类型',value:p.type,options:[{value:'milestone',label:'里程碑项目'},{value:'cycle',label:'循环型项目'}]},
+    {type:'color',name:'color',label:'颜色',value:p.color,options:PROJECT_COLORS}
+  ],function(v){
+    if(!v.name||!v.name.trim()){showToast('请输入项目名称');return;}
+    p.name=v.name.trim();p.icon=v.icon||p.icon;p.type=v.type||p.type;p.color=v.color||p.color;
+    saveData();render();showToast('项目已更新');
+  },{deleteText:'删除此项目',deleteFn:function(){deleteProject(pid);}});
+}
+
+/* ===== CRUD: Tasks ===== */
+function addTask(defaultDate) {
+  showFormModal('新建任务',[
+    {type:'text',name:'title',label:'任务名称',placeholder:'输入任务名称'},
+    {type:'select',name:'projectId',label:'所属项目',value:state.data.projects[0]?state.data.projects[0].id:'',options:state.data.projects.map(function(p){return{value:p.id,label:p.icon+' '+p.name};})},
+    {type:'select',name:'priority',label:'优先级',value:'normal',options:[{value:'normal',label:'普通'},{value:'high',label:'高优先'}]},
+    {type:'text',name:'xp',label:'XP奖励',value:'10'},
+    {type:'text',name:'date',label:'日期(YYYY-MM-DD)',value:defaultDate||'',placeholder:'留空放入任务池'}
+  ],function(v){
+    if(!v.title||!v.title.trim()){showToast('请输入任务名称');return;}
+    state.data.tasks.push({id:uid(),title:v.title.trim(),projectId:v.projectId||'',stepId:null,date:v.date||null,completed:false,xp:parseInt(v.xp)||10,priority:v.priority||'normal'});
+    saveData();render();showToast('任务已创建');
+  });
+}
+function editTask(tid) {
+  var t=getTask(tid);if(!t)return;
+  showFormModal('编辑任务',[
+    {type:'text',name:'title',label:'任务名称',value:t.title},
+    {type:'select',name:'projectId',label:'所属项目',value:t.projectId,options:state.data.projects.map(function(p){return{value:p.id,label:p.icon+' '+p.name};})},
+    {type:'select',name:'priority',label:'优先级',value:t.priority,options:[{value:'normal',label:'普通'},{value:'high',label:'高优先'}]},
+    {type:'text',name:'xp',label:'XP奖励',value:String(t.xp)},
+    {type:'text',name:'date',label:'日期(YYYY-MM-DD)',value:t.date||'',placeholder:'留空放入任务池'}
+  ],function(v){
+    if(!v.title||!v.title.trim()){showToast('请输入任务名称');return;}
+    t.title=v.title.trim();t.projectId=v.projectId||t.projectId;t.priority=v.priority||t.priority;t.xp=parseInt(v.xp)||t.xp;t.date=v.date||null;
+    saveData();render();showToast('任务已更新');
+  },{deleteText:'删除此任务',deleteFn:function(){deleteTask(tid);}});
+}
+function deleteTask(tid) {
+  var t=getTask(tid);if(!t)return;
+  var idx=state.data.tasks.indexOf(t);var backup=clone(t);
+  state.data.tasks.splice(idx,1);saveData();render();
+  showToast('已删除「'+t.title+'」',function(){state.data.tasks.splice(idx,0,backup);saveData();render();});
+}
+
+/* ===== CRUD: Steps ===== */
+function editStep(pid,sid) {
+  var p=getProject(pid);if(!p)return;
+  var s=p.steps.find(function(x){return x.id===sid;});if(!s)return;
+  showFormModal('编辑步骤',[
+    {type:'text',name:'title',label:'步骤名称',value:s.title},
+    {type:'select',name:'status',label:'状态',value:s.status,options:[{value:'todo',label:'未开始'},{value:'active',label:'进行中'},{value:'done',label:'已完成'}]},
+    {type:'textarea',name:'blocker',label:'卡点说明(可选)',value:s.blocker||'',placeholder:'描述当前卡点'}
+  ],function(v){
+    if(!v.title||!v.title.trim()){showToast('请输入步骤名称');return;}
+    s.title=v.title.trim();s.status=v.status||s.status;s.blocker=(v.blocker&&v.blocker.trim())?v.blocker.trim():null;
+    if(s.status==='done') s.blocker=null;
+    saveData();render();showToast('步骤已更新');
+  },{deleteText:'删除此步骤',deleteFn:function(){deleteStep(pid,sid);}});
+}
+function deleteStep(pid,sid) {
+  var p=getProject(pid);if(!p)return;
+  var s=p.steps.find(function(x){return x.id===sid;});if(!s)return;
+  var idx=p.steps.indexOf(s);var backup=clone(s);
+  p.steps.splice(idx,1);saveData();render();
+  showToast('已删除步骤',function(){p.steps.splice(idx,0,backup);saveData();render();});
+}
+
+/* ===== CRUD: Inspirations ===== */
+function addInspiration() {
+  showFormModal('新建灵感',[
+    {type:'textarea',name:'content',label:'内容',placeholder:'记录灵感...'},
+    {type:'select',name:'type',label:'类型',value:'idea',options:[{value:'idea',label:'💡 灵感'},{value:'todo',label:'📋 待办'},{value:'material',label:'📎 资料'}]},
+    {type:'select',name:'projectId',label:'归档项目',value:'',options:[{value:'',label:'未归档'}].concat(state.data.projects.map(function(p){return{value:p.id,label:p.icon+' '+p.name};}))}
+  ],function(v){
+    if(!v.content||!v.content.trim()){showToast('请输入内容');return;}
+    state.data.inspirations.unshift({id:uid(),content:v.content.trim(),type:v.type||'idea',projectId:v.projectId||null,createdAt:Date.now()});
+    saveData();render();showToast('灵感已添加');
+  });
+}
+function editInspiration(iid) {
+  var i=getInspiration(iid);if(!i)return;
+  showFormModal('编辑灵感',[
+    {type:'textarea',name:'content',label:'内容',value:i.content,placeholder:'记录灵感...'},
+    {type:'select',name:'type',label:'类型',value:i.type,options:[{value:'idea',label:'💡 灵感'},{value:'todo',label:'📋 待办'},{value:'material',label:'📎 资料'}]},
+    {type:'select',name:'projectId',label:'归档项目',value:i.projectId||'',options:[{value:'',label:'未归档'}].concat(state.data.projects.map(function(p){return{value:p.id,label:p.icon+' '+p.name};}))}
+  ],function(v){
+    if(!v.content||!v.content.trim()){showToast('请输入内容');return;}
+    i.content=v.content.trim();i.type=v.type||i.type;i.projectId=v.projectId||null;
+    saveData();render();showToast('灵感已更新');
+  },{deleteText:'删除此灵感',deleteFn:function(){deleteInspiration(iid);}});
+}
+function deleteInspiration(iid) {
+  var i=getInspiration(iid);if(!i)return;
+  var idx=state.data.inspirations.indexOf(i);var backup=clone(i);
+  state.data.inspirations.splice(idx,1);saveData();render();
+  showToast('已删除灵感',function(){state.data.inspirations.splice(idx,0,backup);saveData();render();});
 }
 
 /* ===== Init ===== */
