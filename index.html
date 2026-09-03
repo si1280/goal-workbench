@@ -1009,16 +1009,16 @@ a { color: inherit; text-decoration: none; }
   <div id="ai-bar" class="hidden"></div>
   <nav id="bottom-nav"></nav>
   <div id="toast-container"></div>
-  <div id="modal-overlay" class="hidden"></div>
-  <div id="celebration-overlay" class="hidden"></div>
+  <div id="modal-overlay" class="modal-overlay hidden"></div>
+  <div id="celebration-overlay" class="celebration-overlay hidden"></div>
 </div>
 <script>
 (function() {
 'use strict';
 
 /* ===== Config ===== */
-var APP_VERSION = '2.2.0';
-var BUILD_ID = '20260903c';
+var APP_VERSION = '2.3.0';
+var BUILD_ID = '20260903d';
 var STORAGE_KEY = 'goal_workbench_data_v2';
 
 /* ===== Default Data ===== */
@@ -1489,7 +1489,7 @@ function renderCalendar(c) {
   selTasks.forEach(function(t){
     var p=getProject(t.projectId);
     html+='<div class="cal-task-item"><div class="cal-task-bar" style="background:'+(p?p.color:'#ccc')+'"></div>'+
-      '<div class="col" style="flex:1"><span style="font-size:13px;font-weight:600">'+escapeHtml(t.title)+'</span>'+
+      '<div class="col" style="flex:1;cursor:pointer" data-edit-task="'+t.id+'"><span style="font-size:13px;font-weight:600">'+escapeHtml(t.title)+'</span>'+
       '<span style="font-size:11px;color:var(--muted)">'+(p?p.name:'')+'</span></div>'+
       (t.completed?'<span class="tag tag-green">✅</span>':'<span class="cal-task-remove" data-rm-task="'+t.id+'">✕</span>')+
       '</div>';
@@ -1501,7 +1501,7 @@ function renderCalendar(c) {
   pool.forEach(function(t){
     var p=getProject(t.projectId);
     html+='<div class="pool-item" data-pool-task="'+t.id+'"><div class="cal-task-bar" style="background:'+(p?p.color:'#ccc')+'"></div>'+
-      '<div class="col" style="flex:1"><span style="font-size:13px;font-weight:600">'+escapeHtml(t.title)+'</span>'+
+      '<div class="col" style="flex:1;cursor:pointer" data-edit-task="'+t.id+'"><span style="font-size:13px;font-weight:600">'+escapeHtml(t.title)+'</span>'+
       '<span style="font-size:11px;color:var(--muted)">'+(p?p.name:'')+'</span></div>'+
       '<span class="tag">📅</span></div>';
   });
@@ -1523,6 +1523,9 @@ function renderCalendar(c) {
       render();
       showToast('已移回任务池',function(){ t.date=oldDate; saveData(); render(); });
     });
+  });
+  c.querySelectorAll('[data-edit-task]').forEach(function(el){
+    el.addEventListener('click',function(){ editTask(el.dataset.editTask); });
   });
   setupDragDrop(c);
 }
@@ -2055,13 +2058,15 @@ function showToast(message,undoFn) {
 function showModal(html) {
   var overlay=$('#modal-overlay');
   overlay.innerHTML='<div class="modal-card">'+html+'</div>';
-  overlay.className='';
-  overlay.addEventListener('click',function(e){
+  overlay.classList.remove('hidden');
+  overlay.onclick=function(e){
     if(e.target===overlay) closeModal();
-  });
+  };
 }
 function closeModal() {
-  $('#modal-overlay').className='hidden';
+  var overlay=$('#modal-overlay');
+  overlay.classList.add('hidden');
+  overlay.innerHTML='';
 }
 window.closeModal=closeModal;
 
