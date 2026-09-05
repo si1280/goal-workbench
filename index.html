@@ -79,7 +79,12 @@ a { color: inherit; text-decoration: none; }
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: 0 16px;
+  touch-action: pan-y;
 }
+.slide-left { animation: slideLeft 0.25s ease-out; }
+.slide-right { animation: slideRight 0.25s ease-out; }
+@keyframes slideLeft { from { transform: translateX(60px); opacity: 0.5; } to { transform: translateX(0); opacity: 1; } }
+@keyframes slideRight { from { transform: translateX(-60px); opacity: 0.5; } to { transform: translateX(0); opacity: 1; } }
 
 /* ===== Bottom Nav ===== */
 #bottom-nav {
@@ -143,6 +148,13 @@ a { color: inherit; text-decoration: none; }
   color: var(--ink);
 }
 .ai-input input::placeholder { color: var(--muted); }
+.ai-settings-btn {
+  font-size: 11px; font-weight: 600; color: var(--accent);
+  background: var(--accent-light); border: 1px solid var(--accent);
+  border-radius: 14px; padding: 4px 10px; white-space: nowrap;
+  flex-shrink: 0; cursor: pointer;
+}
+.ai-attach { font-size: 18px; cursor: pointer; flex-shrink: 0; }
 .ai-send-btn {
   width: 32px; height: 32px;
   border-radius: 50%;
@@ -1036,8 +1048,8 @@ a { color: inherit; text-decoration: none; }
 'use strict';
 
 /* ===== Config ===== */
-var APP_VERSION = '3.0.0';
-var BUILD_ID = '20260905b';
+var APP_VERSION = '3.1.0';
+var BUILD_ID = '20260905c';
 var STORAGE_KEY = 'goal_workbench_data_v2';
 
 /* ===== Default Data ===== */
@@ -1227,6 +1239,36 @@ function goBack() {
   var pc=$('#page-container'); if(pc) pc.scrollTop=0;
 }
 
+/* ===== Swipe Navigation ===== */
+var SWIPE_TABS=['today','projects','calendar','inspirations','dashboard'];
+var swipeStartX=0, swipeStartY=0, swipeActive=false;
+function initSwipe() {
+  var pc=$('#page-container');
+  if(!pc) return;
+  pc.addEventListener('touchstart', function(e) {
+    if(e.touches.length!==1) { swipeActive=false; return; }
+    swipeStartX=e.touches[0].clientX;
+    swipeStartY=e.touches[0].clientY;
+    swipeActive=true;
+  }, {passive:true});
+  pc.addEventListener('touchend', function(e) {
+    if(!swipeActive) return;
+    swipeActive=false;
+    var dx=e.changedTouches[0].clientX - swipeStartX;
+    var dy=e.changedTouches[0].clientY - swipeStartY;
+    if(Math.abs(dx)<50 || Math.abs(dy)>Math.abs(dx)) return;
+    var curIdx=SWIPE_TABS.indexOf(state.route);
+    if(curIdx<0) return;
+    if(dx>0 && curIdx>0) {
+      navigate(SWIPE_TABS[curIdx-1]);
+      var el=$('#page-container'); if(el) { el.classList.remove('slide-right'); void el.offsetWidth; el.classList.add('slide-right'); }
+    } else if(dx<0 && curIdx<SWIPE_TABS.length-1) {
+      navigate(SWIPE_TABS[curIdx+1]);
+      var el=$('#page-container'); if(el) { el.classList.remove('slide-left'); void el.offsetWidth; el.classList.add('slide-left'); }
+    }
+  }, {passive:true});
+}
+
 /* ===== Render ===== */
 function render() {
   var c=$('#page-container');
@@ -1278,9 +1320,13 @@ function renderAIBar() {
   var bar=$('#ai-bar');
   if(bar.className==='hidden') return;
   if(state.route==='ai-chat') {
-    bar.innerHTML='<div class="ai-attach" id="ai-attach-btn">📎</div>'+
+    var aiSettings=getAISettings();
+    var settingsLabel=aiSettings.provider?AI_PROVIDERS[aiSettings.provider].name+' ⚙':'设置 AI ⚙';
+    bar.innerHTML='<div class="ai-settings-btn" id="ai-settings-btn">'+settingsLabel+'</div>'+
+      '<div class="ai-attach" id="ai-attach-btn">📎</div>'+
       '<div class="ai-input"><input type="text" id="ai-input-field" placeholder="输入指令或上传资料…" /></div>'+
       '<button class="ai-send-btn" id="ai-send-btn">→</button>';
+    $('#ai-settings-btn').addEventListener('click',showAISettings);
     var input=$('#ai-input-field');
     var send=function(){
       var v=input.value.trim(); if(!v) return;
@@ -1956,13 +2002,124 @@ function editGamification() {
   });
 }
 
+/* ===== AI Provider Config ===== */
+var AI_PROVIDERS={
+  deepseek:{name:'DeepSeek',url:'https://api.deepseek.com/v1/chat/completions',models:[{value:'deepseek-chat',label:'DeepSeek Chat'},{value:'deepseek-reasoner',label:'DeepSeek R1'}],getKeyUrl:'https://platform.deepseek.com/api_keys'},
+  doubao:{name:'豆包',url:'https://ark.cn-beijing.volces.com/api/v3/chat/completions',models:[{value:'doubao-1-5-lite-32k-250115',label:'豆包 1.5 Lite'},{value:'doubao-1-5-pro-32k-250115',label:'豆包 1.5 Pro'},{value:'doubao-pro-32k-241215',label:'豆包 Pro 32k'}],getKeyUrl:'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey'},
+  qianwen:{name:'通义千问',url:'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',models:[{value:'qwen-turbo',label:'千问 Turbo'},{value:'qwen-plus',label:'千问 Plus'},{value:'qwen-max',label:'千问 Max'}],getKeyUrl:'https://dashscope.console.aliyun.com/apiKey'},
+  kimi:{name:'Kimi',url:'https://api.moonshot.cn/v1/chat/completions',models:[{value:'moonshot-v1-8k',label:'Kimi 8K'},{value:'moonshot-v1-32k',label:'Kimi 32K'},{value:'moonshot-v1-128k',label:'Kimi 128K'}],getKeyUrl:'https://platform.moonshot.cn/console/api-keys'}
+};
+function getAISettings() {
+  try { return JSON.parse(localStorage.getItem('ai_settings')||'{}'); } catch(e) { return {}; }
+}
+function saveAISettings(s) { localStorage.setItem('ai_settings',JSON.stringify(s)); }
+function showAISettings() {
+  var s=getAISettings();
+  var providerKeys=Object.keys(AI_PROVIDERS);
+  var providerOpts=providerKeys.map(function(k){return{value:k,label:AI_PROVIDERS[k].name};});
+  var currentProvider=s.provider||'deepseek';
+  var provider=AI_PROVIDERS[currentProvider];
+  var modelOpts=provider.models;
+  var html='<div class="form-group"><label class="form-label">AI 引擎</label>'+
+    '<select class="form-select" id="ai-provider">'+providerOpts.map(function(o){return'<option value="'+o.value+'" '+(o.value===currentProvider?'selected':'')+'>'+escapeHtml(o.label)+'</option>';}).join('')+'</select></div>';
+  html+='<div class="form-group"><label class="form-label">模型</label>'+
+    '<select class="form-select" id="ai-model">'+modelOpts.map(function(o){return'<option value="'+o.value+'" '+(o.value===(s.model||provider.models[0].value)?'selected':'')+'>'+escapeHtml(o.label)+'</option>';}).join('')+'</select></div>';
+  html+='<div class="form-group"><label class="form-label">API Key</label>'+
+    '<input type="password" class="form-input" id="ai-apikey" value="'+escapeHtml(s.apiKey||'')+'" placeholder="输入 API Key" /></div>';
+  html+='<div class="form-group"><label class="form-label">CORS 代理地址（可选，留空用默认）</label>'+
+    '<input type="text" class="form-input" id="ai-proxy" value="'+escapeHtml(s.proxyUrl||'')+'" placeholder="https://corsproxy.io/?url=" /></div>';
+  var p=AI_PROVIDERS[currentProvider];
+  html+='<div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6">'+
+    '获取 '+p.name+' API Key：<br/><a href="'+p.getKeyUrl+'" target="_blank" style="color:var(--accent)">'+p.getKeyUrl+'</a><br/><br/>'+
+    'CORS 代理用于跨域请求。如果默认代理不可用，可替换为其他代理地址。<br/>推荐：<br/>• https://corsproxy.io/?url=<br/>• https://api.allorigins.win/raw?url=</div>';
+  showModal('<h3>⚙ AI 设置</h3>'+html+
+    '<div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">取消</button>'+
+    '<button class="btn-confirm" id="ai-settings-confirm" style="background:var(--accent);color:#fff">保存</button></div>');
+  $('#ai-provider').addEventListener('change',function(){
+    var newProvider=AI_PROVIDERS[this.value];
+    var modelSelect=$('#ai-model');
+    modelSelect.innerHTML=newProvider.models.map(function(m){return'<option value="'+m.value+'">'+escapeHtml(m.label)+'</option>';}).join('');
+  });
+  $('#ai-settings-confirm').addEventListener('click',function(){
+    var settings={
+      provider:$('#ai-provider').value,
+      model:$('#ai-model').value,
+      apiKey:$('#ai-apikey').value.trim(),
+      proxyUrl:$('#ai-proxy').value.trim()
+    };
+    saveAISettings(settings);
+    closeModal();
+    renderAIChat($('#page-container'));
+    showToast('AI 设置已保存');
+  });
+}
+
+function buildSystemPrompt() {
+  var d=state.data;
+  var prompt='你是一个个人目标管理助手，用户是新媒体运营，正在创业和做自媒体。以下是用户的当前数据：\n\n';
+  prompt+='## 项目列表\n';
+  d.projects.forEach(function(p){
+    var steps=p.steps||[];
+    var completed=steps.filter(function(s){return s.status==='completed';}).length;
+    var blocked=steps.filter(function(s){return s.status==='blocked';}).length;
+    prompt+='- '+p.icon+' '+p.name+'（'+(p.type==='milestone'?'里程碑':'循环型')+'）：'+completed+'/'+steps.length+' 步骤完成'+(blocked>0?'，有卡点':'')+'\n';
+    steps.forEach(function(s){
+      if(s.status==='blocked')
+        prompt+='  ⚠ '+s.title+'：'+(s.blocker||'')+'\n';
+    });
+  });
+  var todayTasks=d.tasks.filter(function(t){return t.date===todayStr();});
+  prompt+='\n## 今日任务（'+todayTasks.length+'项）\n';
+  todayTasks.forEach(function(t){prompt+='- '+(t.time||'全天')+' '+t.title+(t.completed?' ✅':' ⬜')+'\n';});
+  var poolTasks=d.tasks.filter(function(t){return !t.date&&!t.completed;});
+  if(poolTasks.length>0){prompt+='\n## 任务池（未排期）\n';poolTasks.forEach(function(t){prompt+='- '+t.title+'\n';});}
+  var recentInsps=d.inspirations.slice(-5);
+  if(recentInsps.length>0){prompt+='\n## 最近灵感\n';recentInsps.forEach(function(i){prompt+='- '+(i.content.length>30?i.content.substring(0,30)+'...':i.content)+'\n';});}
+  prompt+='\n请根据以上数据回应用户。简洁实用，用中文回答。';
+  return prompt;
+}
+
+async function callAI(userInput) {
+  var s=getAISettings();
+  if(!s.provider||!s.apiKey) return null;
+  var provider=AI_PROVIDERS[s.provider];if(!provider) return null;
+  var model=s.model||provider.models[0].value;
+  var body={model:model,messages:[{role:'system',content:buildSystemPrompt()},{role:'user',content:userInput}],temperature:0.7,max_tokens:2000};
+  var proxyUrl=s.proxyUrl||'https://corsproxy.io/?url=';
+  var fetchUrl=proxyUrl+encodeURIComponent(provider.url);
+  try{
+    var resp=await fetch(fetchUrl,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+s.apiKey},body:JSON.stringify(body)});
+    if(!resp.ok){var errText=await resp.text();return '⚠ AI 返回错误('+resp.status+')：'+errText.substring(0,200);}
+    var data=await resp.json();
+    if(data.choices&&data.choices[0]) return data.choices[0].message.content;
+    return '⚠ AI 返回格式异常';
+  }catch(err){
+    return '⚠ AI 调用失败：'+err.message+'。请检查 API Key 和代理设置。';
+  }
+}
+
 /* ===== AI Simulation ===== */
 function handleAIInput(input) {
   var d=state.data;
   addChatMessage('user',input);
   var msg=input.toLowerCase();
 
-  // Show typing
+  // Check if real AI is configured
+  var aiSettings=getAISettings();
+  if(aiSettings.provider&&aiSettings.apiKey) {
+    showTyping();
+    callAI(input).then(function(resp){
+      removeTyping();
+      if(resp) addChatMessage('ai',resp);
+      else addChatMessage('ai','AI 调用失败，请检查设置。点击底栏「设置 AI」重新配置。');
+    }).catch(function(err){
+      removeTyping();
+      addChatMessage('ai','⚠ AI 调用出错：'+err.message);
+    });
+    return;
+  }
+
+  // Fallback: pattern matching simulation
   showTyping();
 
   setTimeout(function(){
@@ -2423,11 +2580,21 @@ function init() {
   if(!checkVersion()) return;
   state.data=loadData();
   render();
+  initSwipe();
 }
 if(document.readyState==='loading') {
   document.addEventListener('DOMContentLoaded',init);
 } else {
   init();
+}
+
+/* ===== Service Worker Registration ===== */
+if('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('./sw.js').then(function(reg) {
+      console.log('SW registered:', reg.scope);
+    }).catch(function(err) { console.log('SW failed:', err); });
+  });
 }
 
 })();
