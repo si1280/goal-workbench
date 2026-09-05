@@ -1048,8 +1048,8 @@ a { color: inherit; text-decoration: none; }
 'use strict';
 
 /* ===== Config ===== */
-var APP_VERSION = '3.1.0';
-var BUILD_ID = '20260905c';
+var APP_VERSION = '3.2.0';
+var BUILD_ID = '20260905d';
 var STORAGE_KEY = 'goal_workbench_data_v2';
 
 /* ===== Default Data ===== */
@@ -2004,10 +2004,10 @@ function editGamification() {
 
 /* ===== AI Provider Config ===== */
 var AI_PROVIDERS={
-  deepseek:{name:'DeepSeek',url:'https://api.deepseek.com/v1/chat/completions',models:[{value:'deepseek-chat',label:'DeepSeek Chat'},{value:'deepseek-reasoner',label:'DeepSeek R1'}],getKeyUrl:'https://platform.deepseek.com/api_keys'},
-  doubao:{name:'豆包',url:'https://ark.cn-beijing.volces.com/api/v3/chat/completions',models:[{value:'doubao-1-5-lite-32k-250115',label:'豆包 1.5 Lite'},{value:'doubao-1-5-pro-32k-250115',label:'豆包 1.5 Pro'},{value:'doubao-pro-32k-241215',label:'豆包 Pro 32k'}],getKeyUrl:'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey'},
-  qianwen:{name:'通义千问',url:'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',models:[{value:'qwen-turbo',label:'千问 Turbo'},{value:'qwen-plus',label:'千问 Plus'},{value:'qwen-max',label:'千问 Max'}],getKeyUrl:'https://dashscope.console.aliyun.com/apiKey'},
-  kimi:{name:'Kimi',url:'https://api.moonshot.cn/v1/chat/completions',models:[{value:'moonshot-v1-8k',label:'Kimi 8K'},{value:'moonshot-v1-32k',label:'Kimi 32K'},{value:'moonshot-v1-128k',label:'Kimi 128K'}],getKeyUrl:'https://platform.moonshot.cn/console/api-keys'}
+  deepseek:{name:'DeepSeek（推荐·免费500万token）',url:'https://api.deepseek.com/v1/chat/completions',models:[{value:'deepseek-chat',label:'V4 Chat（最便宜）'},{value:'deepseek-reasoner',label:'V4 R1（推理强）'}],getKeyUrl:'https://platform.deepseek.com/api_keys',free:'500万token',tip:'注册即送500万token，最推荐'},
+  doubao:{name:'豆包（免费50万token）',url:'https://ark.cn-beijing.volces.com/api/v3/chat/completions',models:[{value:'doubao-1-5-lite-32k-250115',label:'1.5 Lite（最便宜）'},{value:'doubao-1-5-pro-32k-250115',label:'1.5 Pro'},{value:'doubao-pro-32k-241215',label:'Pro 32k'}],getKeyUrl:'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',free:'50万token/模型',tip:'每个模型50万免费token'},
+  qianwen:{name:'通义千问（每月免费100万）',url:'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',models:[{value:'qwen-turbo',label:'Turbo（最便宜·推荐）'},{value:'qwen-plus',label:'Plus'},{value:'qwen-max',label:'Max'}],getKeyUrl:'https://dashscope.console.aliyun.com/apiKey',free:'100万token/月',tip:'注册送7000万+每月100万免费'},
+  kimi:{name:'Kimi（无免费额度）',url:'https://api.moonshot.cn/v1/chat/completions',models:[{value:'moonshot-v1-8k',label:'8K（最便宜）'},{value:'moonshot-v1-32k',label:'32K'},{value:'moonshot-v1-128k',label:'128K'}],getKeyUrl:'https://platform.moonshot.cn/console/api-keys',free:'无免费',tip:'API按量付费，建议最后考虑'}
 };
 function getAISettings() {
   try { return JSON.parse(localStorage.getItem('ai_settings')||'{}'); } catch(e) { return {}; }
@@ -2030,8 +2030,9 @@ function showAISettings() {
     '<input type="text" class="form-input" id="ai-proxy" value="'+escapeHtml(s.proxyUrl||'')+'" placeholder="https://corsproxy.io/?url=" /></div>';
   var p=AI_PROVIDERS[currentProvider];
   html+='<div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6">'+
-    '获取 '+p.name+' API Key：<br/><a href="'+p.getKeyUrl+'" target="_blank" style="color:var(--accent)">'+p.getKeyUrl+'</a><br/><br/>'+
-    'CORS 代理用于跨域请求。如果默认代理不可用，可替换为其他代理地址。<br/>推荐：<br/>• https://corsproxy.io/?url=<br/>• https://api.allorigins.win/raw?url=</div>';
+    '💡 '+p.tip+'<br/>免费额度：'+p.free+'<br/>'+
+    '获取 API Key：<a href="'+p.getKeyUrl+'" target="_blank" style="color:var(--accent)">'+p.getKeyUrl+'</a><br/><br/>'+
+    'CORS 代理（跨域转发，留空用默认）</div>';
   showModal('<h3>⚙ AI 设置</h3>'+html+
     '<div class="modal-actions"><button class="btn-cancel" onclick="closeModal()">取消</button>'+
     '<button class="btn-confirm" id="ai-settings-confirm" style="background:var(--accent);color:#fff">保存</button></div>');
@@ -2056,27 +2057,21 @@ function showAISettings() {
 
 function buildSystemPrompt() {
   var d=state.data;
-  var prompt='你是一个个人目标管理助手，用户是新媒体运营，正在创业和做自媒体。以下是用户的当前数据：\n\n';
-  prompt+='## 项目列表\n';
-  d.projects.forEach(function(p){
-    var steps=p.steps||[];
-    var completed=steps.filter(function(s){return s.status==='completed';}).length;
-    var blocked=steps.filter(function(s){return s.status==='blocked';}).length;
-    prompt+='- '+p.icon+' '+p.name+'（'+(p.type==='milestone'?'里程碑':'循环型')+'）：'+completed+'/'+steps.length+' 步骤完成'+(blocked>0?'，有卡点':'')+'\n';
-    steps.forEach(function(s){
-      if(s.status==='blocked')
-        prompt+='  ⚠ '+s.title+'：'+(s.blocker||'')+'\n';
-    });
+  var p='你是个人目标管理助手。用户是新媒体运营，正在创业。数据：\n';
+  d.projects.forEach(function(pr){
+    var st=pr.steps||[];
+    var c=st.filter(function(s){return s.status==='completed';}).length;
+    var b=st.filter(function(s){return s.status==='blocked';});
+    p+=pr.icon+pr.name+':'+c+'/'+st.length+(b.length>0?' 卡点:'+b[0].blocker:'')+'; ';
   });
-  var todayTasks=d.tasks.filter(function(t){return t.date===todayStr();});
-  prompt+='\n## 今日任务（'+todayTasks.length+'项）\n';
-  todayTasks.forEach(function(t){prompt+='- '+(t.time||'全天')+' '+t.title+(t.completed?' ✅':' ⬜')+'\n';});
-  var poolTasks=d.tasks.filter(function(t){return !t.date&&!t.completed;});
-  if(poolTasks.length>0){prompt+='\n## 任务池（未排期）\n';poolTasks.forEach(function(t){prompt+='- '+t.title+'\n';});}
-  var recentInsps=d.inspirations.slice(-5);
-  if(recentInsps.length>0){prompt+='\n## 最近灵感\n';recentInsps.forEach(function(i){prompt+='- '+(i.content.length>30?i.content.substring(0,30)+'...':i.content)+'\n';});}
-  prompt+='\n请根据以上数据回应用户。简洁实用，用中文回答。';
-  return prompt;
+  var tt=d.tasks.filter(function(t){return t.date===todayStr();});
+  var td=tt.filter(function(t){return t.completed;}).length;
+  p+='\n今日:'+td+'/'+tt.length+'完成; ';
+  var pt=d.tasks.filter(function(t){return !t.date&&!t.completed;});
+  p+='池:'+pt.length+'待排; ';
+  p+='灵感:'+d.inspirations.length+'条';
+  p+='\n简洁中文回答。';
+  return p;
 }
 
 async function callAI(userInput) {
@@ -2084,7 +2079,7 @@ async function callAI(userInput) {
   if(!s.provider||!s.apiKey) return null;
   var provider=AI_PROVIDERS[s.provider];if(!provider) return null;
   var model=s.model||provider.models[0].value;
-  var body={model:model,messages:[{role:'system',content:buildSystemPrompt()},{role:'user',content:userInput}],temperature:0.7,max_tokens:2000};
+  var body={model:model,messages:[{role:'system',content:buildSystemPrompt()},{role:'user',content:userInput}],temperature:0.6,max_tokens:800};
   var proxyUrl=s.proxyUrl||'https://corsproxy.io/?url=';
   var fetchUrl=proxyUrl+encodeURIComponent(provider.url);
   try{
