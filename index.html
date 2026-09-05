@@ -7,32 +7,39 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="目标工作台">
-<meta name="theme-color" content="#FAF8F5">
+<meta name="theme-color" content="#F1F7F4">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" href="icon.svg">
 <title>目标工作台</title>
 <style>
 /* ===== Variables ===== */
 :root {
-  --bg: #FAF8F5;
+  --bg: #F1F7F4;
   --card: #FFFFFF;
-  --ink: #2D2A26;
-  --muted: #9A958C;
-  --rule: #EDE9E3;
-  --accent: #B8745A;
-  --accent-light: rgba(184,116,90,0.08);
-  --green: #5B9A6F;
-  --green-light: rgba(91,154,111,0.1);
-  --red: #D96B5E;
-  --red-light: rgba(217,107,94,0.1);
-  --orange: #E8A547;
-  --orange-light: rgba(232,165,71,0.1);
-  --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.03);
-  --shadow-lg: 0 4px 16px rgba(0,0,0,0.08);
-  --radius: 14px;
-  --radius-sm: 10px;
-  --radius-xs: 8px;
+  --ink: #2C3E38;
+  --muted: #8AA098;
+  --rule: #E2EFE8;
+  --border: #E2EFE8;
+  --accent: #2FA58A;
+  --accent-light: rgba(47,165,138,0.08);
+  --accent2: #FFB454;
+  --accent2-light: rgba(255,180,84,0.1);
+  --accent3: #F2857D;
+  --green: #2FA58A;
+  --green-light: rgba(47,165,138,0.1);
+  --red: #F06868;
+  --red-light: rgba(240,104,104,0.1);
+  --orange: #FFB454;
+  --orange-light: rgba(255,180,84,0.1);
+  --shadow: 0 2px 8px rgba(47,165,138,0.08);
+  --shadow-lg: 0 4px 16px rgba(47,165,138,0.12);
+  --radius: 16px;
+  --radius-sm: 14px;
+  --radius-xs: 12px;
   --nav-h: 56px;
   --ai-h: 52px;
   --safe-top: env(safe-area-inset-top, 0px);
@@ -107,7 +114,7 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   gap: 8px;
   padding: 8px 16px calc(8px + var(--safe-bottom));
-  background: rgba(250,248,245,0.96);
+  background: rgba(241,247,244,0.96);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--rule);
@@ -163,6 +170,7 @@ a { color: inherit; text-decoration: none; }
 /* ===== Common Components ===== */
 .card {
   background: var(--card);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 14px;
@@ -197,7 +205,7 @@ a { color: inherit; text-decoration: none; }
 }
 .checkbox {
   width: 22px; height: 22px;
-  border: 2px solid #D5D0CA;
+  border: 2px solid #C5D9CF;
   border-radius: 6px;
   flex-shrink: 0;
   display: flex;
@@ -247,7 +255,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ===== Today Page ===== */
 .streak-card {
-  background: linear-gradient(135deg, #FFF6F0, #FFFFFF);
+  background: linear-gradient(135deg, #E8F5EF, #FFFFFF);
   border-radius: var(--radius);
   padding: 16px;
   box-shadow: var(--shadow);
@@ -269,7 +277,7 @@ a { color: inherit; text-decoration: none; }
 }
 .xp-fill {
   height: 6px;
-  background: linear-gradient(90deg, var(--accent), #D89878);
+  background: linear-gradient(90deg, var(--accent), #5BC9A8);
   border-radius: 3px;
   transition: width 0.5s ease;
 }
@@ -278,6 +286,7 @@ a { color: inherit; text-decoration: none; }
   align-items: flex-start;
   gap: 10px;
   background: var(--card);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow);
   padding: 12px;
@@ -315,6 +324,7 @@ a { color: inherit; text-decoration: none; }
   text-align: center;
   padding: 14px;
   background: var(--card);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   margin-bottom: 12px;
@@ -347,6 +357,7 @@ a { color: inherit; text-decoration: none; }
 .swipe-content {
   position: relative;
   background: var(--card);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 14px;
@@ -367,6 +378,7 @@ a { color: inherit; text-decoration: none; }
   align-items: flex-start;
   gap: 10px;
   background: var(--card);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow);
   padding: 12px;
@@ -407,7 +419,7 @@ a { color: inherit; text-decoration: none; }
   text-align: center;
   padding: 12px;
   background: var(--card);
-  border: 1px dashed var(--rule);
+  border: 1px dashed #B5D5C8;
   border-radius: var(--radius-sm);
   margin-top: 8px;
   color: var(--muted);
@@ -484,6 +496,7 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   gap: 8px;
   background: var(--card);
+  border: 1px solid var(--border);
   border-radius: var(--radius-xs);
   box-shadow: var(--shadow);
   padding: 10px 12px;
@@ -746,7 +759,7 @@ a { color: inherit; text-decoration: none; }
 /* ===== Achievement ===== */
 .level-card {
   text-align: center;
-  background: linear-gradient(135deg, #FFF6F0, #FFFFFF);
+  background: linear-gradient(135deg, #E8F5EF, #FFFFFF);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 20px;
@@ -1023,14 +1036,14 @@ a { color: inherit; text-decoration: none; }
 'use strict';
 
 /* ===== Config ===== */
-var APP_VERSION = '2.5.0';
-var BUILD_ID = '20260905a';
+var APP_VERSION = '3.0.0';
+var BUILD_ID = '20260905b';
 var STORAGE_KEY = 'goal_workbench_data_v2';
 
 /* ===== Default Data ===== */
 var DEFAULT_DATA = {
   projects: [
-    { id:'p1', name:'饮食作息', type:'cycle', icon:'🌱', color:'#5B9A6F',
+    { id:'p1', name:'饮食作息', type:'cycle', icon:'🌱', color:'#2FA58A',
       steps:[
         {id:'p1s1',title:'6:20 起床 + 简单洗漱',status:'done'},
         {id:'p1s2',title:'出门运动减脂 30min',status:'done'},
@@ -1039,7 +1052,7 @@ var DEFAULT_DATA = {
         {id:'p1s5',title:'23:00 前入睡',status:'todo',blocker:'刷手机拖延，需要提醒机制'}
       ]
     },
-    { id:'p2', name:'新项目 SOP', type:'milestone', icon:'📋', color:'#B8745A',
+    { id:'p2', name:'新项目 SOP', type:'milestone', icon:'📋', color:'#FFB454',
       steps:[
         {id:'p2s1',title:'项目需求与范围定义',status:'done'},
         {id:'p2s2',title:'人员架构与分工规划',status:'active',blocker:'人员能力画像不清晰，分工方案难定'},
@@ -1074,7 +1087,7 @@ var DEFAULT_DATA = {
         {id:'p5s4',title:'定期断舍离（每月1次）',status:'todo'}
       ]
     },
-    { id:'p6', name:'社交拓展', type:'cycle', icon:'🤝', color:'#E8A547',
+    { id:'p6', name:'社交拓展', type:'cycle', icon:'🤝', color:'#F2857D',
       steps:[
         {id:'p6s1',title:'人脉清单整理',status:'active',blocker:'客户习惯信息分散，缺乏系统记录'},
         {id:'p6s2',title:'客户习惯记录（偏好/频率/备注）',status:'todo'},
@@ -2163,7 +2176,7 @@ function showCelebration(xp,streak) {
     '<div class="emoji">🎉</div>'+
     '<div class="title">今日全部完成！</div>'+
     '<div class="desc">+'+xp+' XP · 连续 '+streak+' 天 🔥</div></div>';
-  var colors=['#B8745A','#5B9A6F','#5B8DB8','#E8A547','#8B6BA8','#D96B5E'];
+  var colors=['#2FA58A','#FFB454','#5B8DB8','#F2857D','#8B6BA8','#F06868'];
   for(var i=0;i<24;i++) {
     var p=document.createElement('div');
     p.className='particle';
@@ -2227,7 +2240,7 @@ function setupSwipeDelete(element,onDelete) {
 }
 
 /* ===== Form Modal ===== */
-var PROJECT_COLORS=['#5B9A6F','#B8745A','#8B6BA8','#5B8DB8','#4A9B96','#E8A547','#D96B5E','#C97B9B'];
+var PROJECT_COLORS=['#2FA58A','#FFB454','#5B8DB8','#F2857D','#8B6BA8','#4A9B96','#F06868','#C97B9B'];
 var PROJECT_ICONS=['🌱','📋','🎬','📚','🏠','🤝','💡','🎯','🎨','🏃','✈️','💻','📝','🔥','⭐','🚀'];
 function showFormModal(title,fields,onConfirm,options) {
   var html='<div class="form-group" data-fg="1">';
@@ -2293,10 +2306,10 @@ function addProject() {
     {type:'text',name:'name',label:'项目名称',placeholder:'输入项目名称'},
     {type:'icon',name:'icon',label:'图标',value:'🎯',options:PROJECT_ICONS},
     {type:'select',name:'type',label:'类型',value:'milestone',options:[{value:'milestone',label:'里程碑项目'},{value:'cycle',label:'循环型项目'}]},
-    {type:'color',name:'color',label:'颜色',value:'#B8745A',options:PROJECT_COLORS}
+    {type:'color',name:'color',label:'颜色',value:'#2FA58A',options:PROJECT_COLORS}
   ],function(v){
     if(!v.name||!v.name.trim()){showToast('请输入项目名称');return;}
-    state.data.projects.push({id:uid(),name:v.name.trim(),type:v.type,icon:v.icon||'🎯',color:v.color||'#B8745A',steps:[]});
+    state.data.projects.push({id:uid(),name:v.name.trim(),type:v.type,icon:v.icon||'🎯',color:v.color||'#2FA58A',steps:[]});
     saveData();render();showToast('项目已创建');
   });
 }
