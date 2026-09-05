@@ -1023,8 +1023,8 @@ a { color: inherit; text-decoration: none; }
 'use strict';
 
 /* ===== Config ===== */
-var APP_VERSION = '2.4.0';
-var BUILD_ID = '20260903e';
+var APP_VERSION = '2.5.0';
+var BUILD_ID = '20260905a';
 var STORAGE_KEY = 'goal_workbench_data_v2';
 
 /* ===== Default Data ===== */
@@ -1085,14 +1085,14 @@ var DEFAULT_DATA = {
     }
   ],
   tasks: [
-    {id:'t1',title:'6:20 起床运动 30min',projectId:'p1',stepId:'p1s2',date:'2026-09-03',completed:true,xp:15,priority:'normal'},
-    {id:'t2',title:'AI 英语对话 30min',projectId:'p4',stepId:'p4s1',date:'2026-09-03',completed:true,xp:20,priority:'normal'},
-    {id:'t3',title:'人员架构分工方案',projectId:'p2',stepId:'p2s2',date:'2026-09-03',completed:false,xp:25,priority:'high'},
-    {id:'t4',title:'自媒体选题构思',projectId:'p3',stepId:'p3s2',date:'2026-09-03',completed:false,xp:15,priority:'normal'},
-    {id:'t5',title:'整理客户偏好表',projectId:'p6',stepId:'p6s2',date:null,completed:false,xp:15,priority:'normal'},
-    {id:'t6',title:'晚餐快手菜谱研究',projectId:'p1',stepId:'p1s4',date:null,completed:false,xp:10,priority:'normal'},
-    {id:'t7',title:'游泳课程时间确认',projectId:'p5',stepId:'p5s1',date:null,completed:false,xp:10,priority:'normal'},
-    {id:'t8',title:'英语热点素材搜集',projectId:'p4',stepId:'p4s3',date:null,completed:false,xp:10,priority:'normal'}
+    {id:'t1',title:'起床运动 30min',projectId:'p1',stepId:'p1s2',date:'2026-09-03',time:'06:20',completed:true,xp:15,priority:'normal'},
+    {id:'t2',title:'AI 英语对话 30min',projectId:'p4',stepId:'p4s1',date:'2026-09-03',time:'07:00',completed:true,xp:20,priority:'normal'},
+    {id:'t3',title:'人员架构分工方案',projectId:'p2',stepId:'p2s2',date:'2026-09-03',time:'10:00',completed:false,xp:25,priority:'high'},
+    {id:'t4',title:'自媒体选题构思',projectId:'p3',stepId:'p3s2',date:'2026-09-03',time:'14:00',completed:false,xp:15,priority:'normal'},
+    {id:'t5',title:'整理客户偏好表',projectId:'p6',stepId:'p6s2',date:null,time:null,completed:false,xp:15,priority:'normal'},
+    {id:'t6',title:'晚餐快手菜谱研究',projectId:'p1',stepId:'p1s4',date:null,time:null,completed:false,xp:10,priority:'normal'},
+    {id:'t7',title:'游泳课程时间确认',projectId:'p5',stepId:'p5s1',date:null,time:null,completed:false,xp:10,priority:'normal'},
+    {id:'t8',title:'英语热点素材搜集',projectId:'p4',stepId:'p4s3',date:null,time:null,completed:false,xp:10,priority:'normal'}
   ],
   inspirations: [
     {id:'i1',content:'30+焦虑主题可以做系列：身体还给自己、微小努力改变未来',type:'idea',projectId:'p3',createdAt:'2026-09-03T10:00:00'},
@@ -1303,6 +1303,7 @@ function renderAIBar() {
 function renderToday(c) {
   var d=state.data;
   var tasks=d.tasks.filter(function(t){return t.date===todayStr();});
+  tasks.sort(function(a,b){ var at=a.time||'99:99',bt=b.time||'99:99'; return at.localeCompare(bt); });
   var doneCount=tasks.filter(function(t){return t.completed;}).length;
   var g=d.gamification;
   var xpPct=Math.round(g.xp/g.xpToNext*100);
@@ -1317,10 +1318,11 @@ function renderToday(c) {
     '<span class="add-fab" id="add-task-today" style="margin:0;padding:4px 10px;font-size:12px">＋ 添加任务</span></div>';
   html+='<div>'+tasks.map(function(t){
     var p=getProject(t.projectId);
+    var timeLabel=t.time?'🕐 '+t.time:'🕐 全天';
     return '<div class="task-card '+(t.completed?'done':'')+(t.priority==='high'?' high':'')+'">'+
       '<div class="checkbox '+(t.completed?'checked':'')+'" data-task-id="'+t.id+'"></div>'+
       '<div class="task-content" data-edit-task="'+t.id+'"><div class="task-title '+(t.completed?'strike':'')+'">'+escapeHtml(t.title)+'</div>'+
-      '<div class="task-meta">'+(p?p.name:'')+' · '+(t.completed?'已完成':'待完成')+'</div></div>'+
+      '<div class="task-meta">'+timeLabel+' · '+(p?p.name:'')+' · '+(t.completed?'已完成':'待完成')+'</div></div>'+
       (t.completed?'<span class="xp-tag">+'+t.xp+' XP</span>':'<span class="priority-tag">高优先</span>')+
     '</div>';
   }).join('')+'</div>';
@@ -1491,13 +1493,15 @@ function renderCalendar(c) {
   html+='</div>';
 
   var selTasks=state.data.tasks.filter(function(t){return t.date===state.selectedDate;});
+  selTasks.sort(function(a,b){ var at=a.time||'99:99',bt=b.time||'99:99'; return at.localeCompare(bt); });
   html+='<div class="cal-day-tasks"><div class="row-between"><div class="section-label" style="margin:0">'+state.selectedDate.replace(/2026-0?/,'').replace('-','月')+'日 · '+(selTasks.length>0?selTasks.length+' 项':'无任务')+'</div>'+
     '<span class="add-fab" id="cal-add-task" style="margin:0;padding:4px 10px;font-size:12px">＋ 添加</span></div>';
   selTasks.forEach(function(t){
     var p=getProject(t.projectId);
+    var timeLabel=t.time?'🕐 '+t.time:'🕐 全天';
     html+='<div class="cal-task-item"><div class="cal-task-bar" style="background:'+(p?p.color:'#ccc')+'"></div>'+
       '<div class="col" style="flex:1;cursor:pointer" data-edit-task="'+t.id+'"><span style="font-size:13px;font-weight:600">'+escapeHtml(t.title)+'</span>'+
-      '<span style="font-size:11px;color:var(--muted)">'+(p?p.name:'')+'</span></div>'+
+      '<span style="font-size:11px;color:var(--muted)">'+timeLabel+' · '+(p?p.name:'')+'</span></div>'+
       (t.completed?'<span class="tag tag-green">✅</span>':'<span class="cal-task-remove" data-rm-task="'+t.id+'">✕</span>')+
       '<span class="cal-task-del" data-del-task="'+t.id+'">🗑</span>'+
       '</div>';
@@ -1985,7 +1989,7 @@ function handleAIInput(input) {
       if(todayTasks.length-completed>0) {
         review+='⬜ 未完成 '+(todayTasks.length-completed)+' 项：\n';
         todayTasks.filter(function(t){return !t.completed;}).forEach(function(t){
-          review+='   · '+t.title+'\n';
+          review+='   · '+(t.time?t.time+' ':'')+t.title+'\n';
         });
       }
       if(blocked.length>0) {
@@ -2231,6 +2235,10 @@ function showFormModal(title,fields,onConfirm,options) {
     html+='<div class="form-group"><label class="form-label">'+escapeHtml(f.label)+'</label>';
     if(f.type==='text')
       html+='<input type="text" class="form-input" id="field-'+f.name+'" value="'+escapeHtml(f.value||'')+'" placeholder="'+escapeHtml(f.placeholder||'')+'" />';
+    else if(f.type==='date')
+      html+='<input type="date" class="form-input" id="field-'+f.name+'" value="'+escapeHtml(f.value||'')+'" />';
+    else if(f.type==='time')
+      html+='<input type="time" class="form-input" id="field-'+f.name+'" value="'+escapeHtml(f.value||'')+'" />';
     else if(f.type==='textarea')
       html+='<textarea class="form-textarea" id="field-'+f.name+'" placeholder="'+escapeHtml(f.placeholder||'')+'">'+escapeHtml(f.value||'')+'</textarea>';
     else if(f.type==='select') {
@@ -2313,10 +2321,11 @@ function addTask(defaultDate) {
     {type:'select',name:'projectId',label:'所属项目',value:state.data.projects[0]?state.data.projects[0].id:'',options:state.data.projects.map(function(p){return{value:p.id,label:p.icon+' '+p.name};})},
     {type:'select',name:'priority',label:'优先级',value:'normal',options:[{value:'normal',label:'普通'},{value:'high',label:'高优先'}]},
     {type:'text',name:'xp',label:'XP奖励',value:'10'},
-    {type:'text',name:'date',label:'日期(YYYY-MM-DD)',value:defaultDate||'',placeholder:'留空放入任务池'}
+    {type:'date',name:'date',label:'日期',value:defaultDate||''},
+    {type:'time',name:'time',label:'时间',value:''}
   ],function(v){
     if(!v.title||!v.title.trim()){showToast('请输入任务名称');return;}
-    state.data.tasks.push({id:uid(),title:v.title.trim(),projectId:v.projectId||'',stepId:null,date:v.date||null,completed:false,xp:parseInt(v.xp)||10,priority:v.priority||'normal'});
+    state.data.tasks.push({id:uid(),title:v.title.trim(),projectId:v.projectId||'',stepId:null,date:v.date||null,time:v.time||null,completed:false,xp:parseInt(v.xp)||10,priority:v.priority||'normal'});
     saveData();render();showToast('任务已创建');
   });
 }
@@ -2327,10 +2336,11 @@ function editTask(tid) {
     {type:'select',name:'projectId',label:'所属项目',value:t.projectId,options:state.data.projects.map(function(p){return{value:p.id,label:p.icon+' '+p.name};})},
     {type:'select',name:'priority',label:'优先级',value:t.priority,options:[{value:'normal',label:'普通'},{value:'high',label:'高优先'}]},
     {type:'text',name:'xp',label:'XP奖励',value:String(t.xp)},
-    {type:'text',name:'date',label:'日期(YYYY-MM-DD)',value:t.date||'',placeholder:'留空放入任务池'}
+    {type:'date',name:'date',label:'日期',value:t.date||''},
+    {type:'time',name:'time',label:'时间',value:t.time||''}
   ],function(v){
     if(!v.title||!v.title.trim()){showToast('请输入任务名称');return;}
-    t.title=v.title.trim();t.projectId=v.projectId||t.projectId;t.priority=v.priority||t.priority;t.xp=parseInt(v.xp)||t.xp;t.date=v.date||null;
+    t.title=v.title.trim();t.projectId=v.projectId||t.projectId;t.priority=v.priority||t.priority;t.xp=parseInt(v.xp)||t.xp;t.date=v.date||null;t.time=v.time||null;
     saveData();render();showToast('任务已更新');
   },{deleteText:'删除此任务',deleteFn:function(){deleteTask(tid);}});
 }
