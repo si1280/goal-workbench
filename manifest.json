@@ -1,0 +1,19 @@
+{
+  "name": "目标工作台",
+  "short_name": "工作台",
+  "description": "个人目标管理工作台 — 项目管理、任务排期、灵感收集、游戏化激励",
+  "start_url": "/goal-workbench/",
+  "scope": "/goal-workbench/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F1F7F4",
+  "theme_color": "#F1F7F4",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
